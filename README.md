@@ -6,6 +6,10 @@ Instructor: Prof. Wesley Marrero, Thayer School of Engineering, Dartmouth Colleg
 
 > A long-only investor must split capital between U.S. equities (SPY) and aggregate bonds (AGG) every month. We treat the prevailing macro-financial regime as a hidden state, infer it from VIX and the 10Y–3M Treasury term spread via a Gaussian Hidden Markov Model, and choose portfolio weights using the QMDP approximation of the resulting POMDP. We benchmark against the static 60/40 plus ten other strategies spanning the academic and practitioner consensus.
 
+> **Research disclaimer:** this is an academic backtest, not investment advice.
+> Reported performance is historical and depends on the documented sample,
+> assumptions, transaction costs, and model-selection protocol.
+
 ---
 
 ## TL;DR
