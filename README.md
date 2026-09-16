@@ -14,9 +14,13 @@ Instructor: Prof. Wesley Marrero, Thayer School of Engineering, Dartmouth Colleg
 
 ## TL;DR
 
-A correctly-applied POMDP regime overlay (QMDP on a belief recursively filtered from VIX and the term spread) beats the static 60/40 on every risk-adjusted metric and across every sub-period we tested. At the canonical CRRA γ=2 it attains Sharpe **1.18** (4th of twelve), beats the static 60/40 (0.81), and roughly ties the HMM-conditional mean-variance baseline (1.20), while cutting maximum drawdown from −34% to −14%.
-
-The honest verdict: the QMDP overlay does *not* overtake the practitioner-consensus trend rule (Faber's 10-month SMA, Sharpe 1.68) on our 2003–2026 sample, and we make no such claim. What we do claim is sharper than a Sharpe number. The POMDP is the right minimum decision-theoretic tool for the problem. The belief state is genuinely recursive and demonstrably regime-tracking. The QMDP rule follows from the belief-space Bellman equation as an explicit one-step value-function approximation. The regime-aware policy that results is robust across CRRA levels, observation cohorts, three economically distinct sub-periods, and refit cadence.
+On the documented 2003–2026 backtest, the QMDP overlay reaches a 1.18
+Sharpe ratio versus 0.81 for static 60/40 and reduces maximum drawdown from
+34% to 14%. It ranks fourth among twelve strategies and does not outperform
+Faber's 10-month trend rule (1.68 Sharpe). The contribution is the explicit
+decision pipeline: recursively filtered regime beliefs, a documented QMDP
+approximation, and sensitivity analyses across risk aversion, observation
+sets, subperiods, and refit cadence.
 
 ---
 
@@ -239,7 +243,10 @@ Expanding-window refit is monotonically the best cadence: within this pipeline i
 
 ### 5. Subperiod robustness ([`results/subperiod_metrics.csv`](results/subperiod_metrics.csv))
 
-The QMDP overlay is solid in all three sub-periods: Sharpe **1.16** in Period A (2003–2010, the GFC era), 1.30 in Period B (2011–2019), and 1.17 in Period C (2020–2026). It beats the static 60/40 in every sub-period (the static's Period A Sharpe is only 0.50).
+The QMDP overlay records Sharpe **1.16** in Period A (2003–2010), 1.30
+in Period B (2011–2019), and 1.17 in Period C (2020–2026). In this backtest it
+exceeds static 60/40 in each subperiod; the static strategy records 0.50 in
+Period A.
 
 ---
 
@@ -270,8 +277,8 @@ The QMDP overlay is solid in all three sub-periods: Sharpe **1.16** in Period A 
 ## Quick start
 
 ```bash
-git clone git@github.com:takakhoo/ENGS177_Final_Project.git
-cd ENGS177_Final_Project
+git clone https://github.com/takakhoo/pomdp-regime-allocation.git
+cd pomdp-regime-allocation
 python3 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 
@@ -289,6 +296,14 @@ python experiments/02_hmm_calibration.py
 ```
 
 Total wall time end-to-end with all 12 experiments: under 5 minutes on a 2019 MacBook Pro.
+
+## Verification
+
+`python experiments/00_synthetic_demo.py` was run successfully on September
+16, 2026. It verifies the HMM-to-belief-to-QMDP pipeline without network access.
+The committed real-data tables and figures are the evidence for the historical
+backtest; refreshing them requires the public data endpoints used by
+`01_fetch_data.py`.
 
 ### Loading the data and a fitted HMM
 
