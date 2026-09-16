@@ -327,7 +327,7 @@ print("Emission means (VIX, term spread):", hmm.means_)
 ## Repo layout
 
 ```
-ENGS177_Final_Project/
+pomdp-regime-allocation/
 ├── README.md                       (this file)
 ├── docs/
 │   ├── 01_project_story.md         (single narrative beginning-to-end; start here)
