@@ -465,12 +465,22 @@ def black_litterman_hmm_views(
 def backtest_from_weights(
     weights: pd.DataFrame, asset_rets: pd.DataFrame, txcost_bps: float = 5.0,
 ) -> pd.Series:
-    """Given a (T, n) weight matrix and (T, n) return matrix, produce the
-    realised monthly portfolio return net of L1 transaction costs.
+    """End-of-month signals, applied to NEXT month's LOG asset returns.
+
+    Converts each asset to simple returns before portfolio aggregation.
+    Cost is an approximate L1 target-weight-change cost (not drift-adjusted);
+    initial allocation from cash is charged. First row stays in cash.
     """
-    aligned_w = weights.reindex(asset_rets.index).ffill().fillna(0)
-    gross = (aligned_w * asset_rets).sum(axis=1)
-    # Transaction cost: |dw_t| * cost
-    turnover = aligned_w.diff().abs().sum(axis=1).fillna(0)
+    if txcost_bps < 0 or not np.isfinite(txcost_bps):
+        raise ValueError("Nonnegative finite costs required")
+    if not weights.index.equals(asset_rets.index) or not weights.columns.equals(asset_rets.columns):
+        raise ValueError("Weights and returns must have identical indexes and columns")
+    if not asset_rets.index.is_unique or not asset_rets.index.is_monotonic_increasing:
+        raise ValueError("Chronological unique dates required")
+    if not np.isfinite(weights.values).all() or not np.isfinite(asset_rets.values).all() or (weights.values < 0).any() or (weights.sum(axis=1) > 1 + 1e-10).any():
+        raise ValueError("Finite long-only weights and returns required")
+    aligned_w = weights.shift(1).fillna(0)
+    gross = (aligned_w * np.expm1(asset_rets)).sum(axis=1)
+    turnover = aligned_w.sub(aligned_w.shift(1).fillna(0)).abs().sum(axis=1)
     cost = turnover * (txcost_bps / 1e4)
     return gross - cost

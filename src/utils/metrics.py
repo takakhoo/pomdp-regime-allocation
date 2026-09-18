@@ -26,7 +26,7 @@ def sharpe_ratio(returns: pd.Series, rf: float = 0.0) -> float:
 
 def max_drawdown(returns: pd.Series) -> float:
     cum = (1.0 + returns).cumprod()
-    running_max = cum.cummax()
+    running_max = cum.cummax().clip(lower=1.0)
     return (cum / running_max - 1.0).min()  # negative number
 
 
@@ -93,7 +93,7 @@ def hit_rate(returns: pd.Series, benchmark: pd.Series | None = None) -> float:
 def ulcer_index(returns: pd.Series) -> float:
     """Ulcer index: RMS of percentage drawdowns. Penalises depth AND duration of drawdowns."""
     cum = (1.0 + returns).cumprod()
-    running_max = cum.cummax()
+    running_max = cum.cummax().clip(lower=1.0)
     dd_pct = (cum / running_max - 1.0) * 100.0  # percent
     return float(np.sqrt((dd_pct ** 2).mean()))
 

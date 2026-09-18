@@ -38,15 +38,40 @@ def update_belief(
     unnorm = obs_likelihood * predictive    # (S,), joint with observation
     Z = unnorm.sum()
     if Z <= 0 or not np.isfinite(Z):
-        # Numerical underflow: return uniform as fallback.
-        return np.full_like(belief, 1.0 / belief.size)
+        # No usable emission information: preserve the predictive prior.
+        return predictive / predictive.sum()
     return unnorm / Z
 
 
 def stationary_distribution(T: np.ndarray) -> np.ndarray:
-    """Left eigenvector of T for eigenvalue 1, normalized to a probability vector."""
-    eigvals, eigvecs = np.linalg.eig(T.T)
-    idx = np.argmin(np.abs(eigvals - 1.0))
-    v = np.real(eigvecs[:, idx])
+    """Unique stationary distribution, without eigenvector sign ambiguity."""
+    T = np.asarray(T, dtype=float)
+    if T.ndim != 2 or T.shape[0] != T.shape[1] or not np.isfinite(T).all() or (T < 0).any() or not np.allclose(T.sum(1), 1):
+        raise ValueError("Expected a square stochastic matrix")
+    n = len(T)
+    A = np.vstack([T.T - np.eye(n), np.ones(n)])
+    if np.linalg.matrix_rank(A) < n:
+        raise ValueError("Stationary distribution is not unique")
+    v = np.linalg.lstsq(A, np.r_[np.zeros(n), 1.0], rcond=None)[0]
     v = np.maximum(v, 0)
     return v / v.sum()
+
+
+def filter_log_emissions(log_emissions, T, initial):
+    """Forward-only filter. The first row uses initial directly, without transition."""
+    from scipy.special import logsumexp
+    log_emissions = np.asarray(log_emissions, dtype=float)
+    T, initial = np.asarray(T, dtype=float), np.asarray(initial, dtype=float)
+    if log_emissions.ndim != 2 or T.shape != (len(initial), len(initial)) or log_emissions.shape[1] != len(initial):
+        raise ValueError("Incompatible filter shapes")
+    if (T < 0).any() or (initial < 0).any() or not np.allclose(T.sum(1), 1) or not np.isclose(initial.sum(), 1) or not np.isfinite(log_emissions).all():
+        raise ValueError("Invalid probabilities or log emissions")
+    belief = initial.copy()
+    rows = []
+    for i, emission in enumerate(log_emissions):
+        prior = belief @ T if i else belief
+        with np.errstate(divide="ignore"):
+            joint = np.log(prior) + emission
+        belief = np.exp(joint - logsumexp(joint))
+        rows.append(belief.copy())
+    return np.asarray(rows)

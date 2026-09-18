@@ -97,7 +97,7 @@ def standardize_with_train_stats(
 ) -> tuple[np.ndarray, np.ndarray]:
     """Standardize `full[cols]` using mean/std from `train[cols]`. Returns (train_array, full_array)."""
     mu = train[cols].mean()
-    sd = train[cols].std(ddof=0)
+    sd = train[cols].std(ddof=0).replace(0, 1.0)
     return ((train[cols] - mu) / sd).values, ((full[cols] - mu) / sd).values
 
 

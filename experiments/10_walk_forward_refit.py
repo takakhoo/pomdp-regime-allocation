@@ -35,7 +35,7 @@ import matplotlib.pyplot as plt  # noqa: E402
 from src.models.baselines import (  # noqa: E402
     static_60_40, hmm_conditional_mv, backtest_from_weights,
 )
-from src.models.mdp import value_iteration  # noqa: E402
+from src.models.mdp import value_iteration, q_function  # noqa: E402
 from src.models.hmm import fit_hmm  # noqa: E402
 from src.models.qmdp import update_belief, stationary_distribution  # noqa: E402
 from src.utils.metrics import summarize  # noqa: E402
@@ -123,23 +123,20 @@ def run_walk_forward(
             train_obs_raw = obs_all[train_start:t]
             _, full_std = standardize_with(train_obs_raw, obs_all)
             train_std = full_std[train_start:t]
-            try:
-                current_model, _ = fit_hmm(train_std, n_states=N_STATES, n_restarts=3, seed=t)
-            except Exception:
-                # Fallback: keep the previous model
-                if current_model is None:
-                    current_model = None; current_Q = None
-                    qmdp_w_rows.append([0.6, 0.4]); mv_w_rows.append([0.6, 0.4])
-                    continue
+            # Keep emission coordinates fixed until the NEXT successful refit.
+            mu_t = train_obs_raw.mean(axis=0)
+            sd_t = train_obs_raw.std(axis=0); sd_t[sd_t == 0] = 1
+            # Fail explicitly; silently retaining a model with new scaling is invalid.
+            current_model, _ = fit_hmm(train_std, n_states=N_STATES, n_restarts=3, seed=t)
             current_T = current_model.transmat_
             current_emiss_means = list(current_model.means_)
             current_emiss_covs = list(current_model.covars_)
             # Regime-conditional asset return moments from training window
             states_pred = current_model.predict(train_std)
             # Order by mean SPY return so that 0=bull, 1=bear
-            train_rets = asset_rets.iloc[train_start:t].values
+            train_rets = np.expm1(asset_rets.iloc[train_start:t].values)
             means = [(train_rets[states_pred == k][:, 0].mean() if (states_pred == k).sum() > 0
-                     else asset_rets.values[:, 0].mean())
+                     else train_rets[:, 0].mean())
                      for k in range(N_STATES)]
             order = sorted(range(N_STATES), key=lambda k: means[k], reverse=True)
             current_T = current_T[np.ix_(order, order)]
@@ -154,7 +151,7 @@ def run_walk_forward(
             for k in range(N_STATES):
                 mask = states_pred == k
                 if mask.sum() < 5:
-                    rr = asset_rets.iloc[train_start:t].values
+                    rr = train_rets
                 else:
                     rr = train_rets[mask]
                 regime_returns[k] = rr
@@ -167,15 +164,11 @@ def run_walk_forward(
             R = _build_R(regime_returns, gamma=GAMMA, rng=rng)
             P = np.array([current_T for _ in range(len(ACTIONS))])
             V, pi_idx, _ = value_iteration(P, R, lam=LAMBDA, eps=1e-4)
-            current_Q = R + LAMBDA * np.einsum("ass,s->as", P, V).T
+            current_Q = q_function(P, R, V, LAMBDA)
             current_belief = stationary_distribution(current_T)
             last_refit_t = t
 
         # Standardize this month's obs using THIS refit's training stats
-        train_start = 0 if expanding else (t - train_window)
-        train_obs_raw = obs_all[train_start:t]
-        mu_t = train_obs_raw.mean(axis=0)
-        sd_t = train_obs_raw.std(axis=0); sd_t[sd_t == 0] = 1
         o_std = (obs_all[t] - mu_t) / sd_t
 
         # Belief update
@@ -184,13 +177,14 @@ def run_walk_forward(
         current_belief = update_belief(current_belief, current_T, likelihood)
 
         # QMDP action
-        a_idx = int((current_belief @ current_Q).argmax())
+        next_belief = current_belief @ current_T
+        a_idx = int((next_belief @ current_Q).argmax())
         qmdp_w_rows.append(ACTIONS[a_idx].tolist())
 
         # HMM-conditional MV
         K = N_STATES
-        mu_mv = sum(current_belief[k] * current_means_rets[k] for k in range(K))
-        Sigma_mv = sum(current_belief[k] * (current_covs_rets[k]
+        mu_mv = sum(next_belief[k] * current_means_rets[k] for k in range(K))
+        Sigma_mv = sum(next_belief[k] * (current_covs_rets[k]
                        + np.outer(current_means_rets[k], current_means_rets[k]))
                        for k in range(K))
         Sigma_mv = Sigma_mv - np.outer(mu_mv, mu_mv)

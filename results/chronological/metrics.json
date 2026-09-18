@@ -1,0 +1,36 @@
+{
+  "data_sha256": "eb83dff7b0461e90c8f2908c3f129367c5ebd718afe5c66be908100190353e50",
+  "train": [
+    "2003-10-31",
+    "2014-12-31"
+  ],
+  "evaluation": [
+    "2015-01-31",
+    "2026-05-31"
+  ],
+  "seed": 7,
+  "hmm_states": 2,
+  "restarts": 5,
+  "train_log_likelihood": -267.4705283594806,
+  "discount": 0.95,
+  "crra_gamma": 2,
+  "cost_bps_per_L1_target_change": 5,
+  "qmdp_equals_myopic": true,
+  "metrics": {
+    "QMDP": {
+      "cagr": 0.045329952574964194,
+      "sharpe_zero_rf": 0.5125872358923912,
+      "max_drawdown": -0.20523031727413987
+    },
+    "Static 60/40": {
+      "cagr": 0.09051433883582649,
+      "sharpe_zero_rf": 0.9294327913386797,
+      "max_drawdown": -0.20046024233522808
+    },
+    "Lagged 10-month trend": {
+      "cagr": 0.043894815786739816,
+      "sharpe_zero_rf": 0.743476242133517,
+      "max_drawdown": -0.1429858505720224
+    }
+  }
+}
